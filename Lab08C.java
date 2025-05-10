@@ -152,7 +152,7 @@ public class Lab08C extends GBSNetworkApp {
     }
 
     @Override
-    public void onRecieve(String message) {
+    public void onRecieve(String type, String message) {
         System.out.println("[N]: " + message);
     }
 
