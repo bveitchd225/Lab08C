@@ -28,6 +28,11 @@ public class Lab08C extends GBSNetworkApp {
     private int currentPlayer;
     private int winningPlayer;
 
+    private boolean iWantRematch;
+    private boolean otherWantsRematch;
+
+    private int myColor;
+
     public Lab08C(JFrame f) {
         super.setBackground(new Color(201, 227, 202));
         super.setSize(770, 550);
@@ -53,11 +58,18 @@ public class Lab08C extends GBSNetworkApp {
         super.add(playAgain);
         playAgain.setVisible(false);
 
-        int number = (int) (Math.random()*100+1);
-        connect("localhost", "bveitch" + number);
-
+        // START NEW
+        int number = (int) (Math.random()*10000+1);
+        String username = "User" + number;
+        connect("10.0.1.10", username);
+        setChannel("lab08c");
+        joinLobby("A");
+        // END NEW
 
         this.newGame();
+
+        myColor = currentPlayer; // need to set after newGame since that's where currentPlayer randomized
+        lockButtons(); // until other player joins
     }
 
     public void newGame() {
@@ -102,6 +114,24 @@ public class Lab08C extends GBSNetworkApp {
             }
         }
     }
+
+    // START NEW
+    public void lockButtons() {
+        for (int i = 0; i < 7; i++) {
+            buttons.get(i).setEnabled(false);
+            // buttons.get(i).setForeground(BLACK);
+            // buttons.get(i).setBackground(LIGHT_GRAY);
+        }
+    }
+
+    public void unlockButtons() {
+        for (int i = 0; i < 7; i++) {
+            buttons.get(i).setEnabled(true);
+            // buttons.get(i).setForeground(BLACK);
+            // buttons.get(i).setBackground(LIGHT_GRAY);
+        }
+    }
+    // END NEW
 
     public void checkHorizontal() {
         // to be completed by you...
@@ -153,7 +183,94 @@ public class Lab08C extends GBSNetworkApp {
 
     @Override
     public void onRecieve(String type, String message) {
-        System.out.println("[N]: " + message);
+        // START NEW
+        if (type.equals("joinLobby")) {
+            if (currentPlayer == GOLD_TOKEN) {
+                send("yourColor", "" + BLUE_TOKEN);
+            }
+            else {
+                send("yourColor", "" + GOLD_TOKEN);
+            }
+            unlockButtons(); // our turn
+        }
+
+        if (type.equals("yourColor")) {
+            myColor = Integer.parseInt(message);
+            // if my color is ____, and the other player is telling me this,
+            // Then they must be first, and they have the other color
+            if (myColor == GOLD_TOKEN) {
+                currentPlayer = BLUE_TOKEN;
+                blueButtons();
+            }
+            else {
+                currentPlayer = GOLD_TOKEN;
+                goldButtons();
+            }
+            // Since they're first, lock my buttons
+            lockButtons();
+        }
+
+        if (type.equals("play")) {
+            String[] words = message.split(" ");
+            int r = Integer.parseInt(words[0]);
+            int c = Integer.parseInt(words[1]);
+            int p = Integer.parseInt(words[2]);
+            gameBoard.set(r, c, p);
+            unlockButtons();
+            if (currentPlayer == GOLD_TOKEN) {
+                currentPlayer = BLUE_TOKEN;
+                blueButtons();
+            } else {
+                currentPlayer = GOLD_TOKEN;
+                goldButtons();
+            }
+        }
+
+        if (type.equals("end")) {
+            // check for 4 in a row to update winningPlayer
+            checkDiagonals();
+            checkHorizontal();
+            checkVertical();
+
+            if (myColor == winningPlayer) {
+                playAgain.setEnabled(false);
+            }
+            else {
+                playAgain.setEnabled(true);
+            }
+
+
+            playAgain.setVisible(true);
+            for (int i = 0; i < 7; i++) {
+                buttons.get(i).setEnabled(false);
+                buttons.get(i).setForeground(BLACK);
+                buttons.get(i).setBackground(LIGHT_GRAY);
+            }
+        }
+
+        if (type.equals("rematch")) {
+            playAgain.setEnabled(true);
+            otherWantsRematch = true;
+            if (iWantRematch) {
+                // I'm recieving the message after I prompted for rematch
+                // I'm the loser (yikes)
+                otherWantsRematch = false;
+                iWantRematch = false;
+                newGame();
+                // Loser should go first
+                myColor = currentPlayer;
+                if (currentPlayer == GOLD_TOKEN) {
+                    send("yourColor", "" + BLUE_TOKEN);
+                }
+                else {
+                    send("yourColor", "" + GOLD_TOKEN);
+                }
+            }
+        }
+
+        // END NEW
+
+        super.repaint();
     }
 
     @Override
@@ -205,7 +322,16 @@ public class Lab08C extends GBSNetworkApp {
     public void actionPerformed(ActionEvent ae) {
 
         if (ae.getSource() == playAgain) {
-            newGame();
+            // START NEW
+            send("rematch","");
+            playAgain.setEnabled(false);
+            iWantRematch = true;
+            if (otherWantsRematch) {
+                newGame();
+                otherWantsRematch = false;
+                iWantRematch = false;
+            }
+            // END NEW
         }
 
         // Check buttons
@@ -215,7 +341,12 @@ public class Lab08C extends GBSNetworkApp {
                 for (int r = 5; r >= 0; r--) {
                     if (gameBoard.get(r,i) == 0) {
                         gameBoard.set(r, i, currentPlayer);
-                        // send(currentPlayer + "," + r + "," + i);
+
+                        // START NEW
+                        send("play", r + " " + i + " " + myColor);
+                        lockButtons();
+                        // END NEW
+
                         break;
                     }
                 }
@@ -227,36 +358,47 @@ public class Lab08C extends GBSNetworkApp {
                     currentPlayer = GOLD_TOKEN;
                     goldButtons();
                 }
+
+                // Disable buttons for filled columns
+                int countColumnsFilled = 0;
+                for (int j = 0; j < 7; j++) {
+                    if (gameBoard.get(0, j) != 0) {
+                        countColumnsFilled++;
+                        buttons.get(j).setEnabled(false);
+                        buttons.get(j).setForeground(BLACK);
+                        buttons.get(j).setBackground(LIGHT_GRAY);
+                    }
+                }
+        
+                checkDiagonals();
+                checkHorizontal();
+                checkVertical();
+        
+                if (countColumnsFilled == 7 && winningPlayer == -1) {
+                    winningPlayer = 3;
+                }
+        
+                if (winningPlayer != -1) {
+                    playAgain.setVisible(true);
+                    for (int j = 0; j < 7; j++) {
+                        buttons.get(j).setEnabled(false);
+                        buttons.get(j).setForeground(BLACK);
+                        buttons.get(j).setBackground(LIGHT_GRAY);
+                    }
+
+                    // START NEW
+                    send("end", "" + winningPlayer);
+                    if (myColor == winningPlayer) {
+                        playAgain.setEnabled(false);
+                    }
+                    else {
+                        playAgain.setEnabled(true);
+                    }
+                    // END NEW
+                }
             }
         }
 
-        // Disable buttons for filled columns
-        int countColumnsFilled = 0;
-        for (int i = 0; i < 7; i++) {
-            if (gameBoard.get(0, i) != 0) {
-                countColumnsFilled++;
-                buttons.get(i).setEnabled(false);
-                buttons.get(i).setForeground(BLACK);
-                buttons.get(i).setBackground(LIGHT_GRAY);
-            }
-        }
-
-        checkDiagonals();
-        checkHorizontal();
-        checkVertical();
-
-        if (countColumnsFilled == 7 && winningPlayer == -1) {
-            winningPlayer = 3;
-        }
-
-        if (winningPlayer != -1) {
-            playAgain.setVisible(true);
-            for (int i = 0; i < 7; i++) {
-                buttons.get(i).setEnabled(false);
-                buttons.get(i).setForeground(BLACK);
-                buttons.get(i).setBackground(LIGHT_GRAY);
-            }
-        }
 
         super.repaint(); // keep this as the last line of this method
     }
