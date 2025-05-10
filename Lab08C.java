@@ -53,10 +53,6 @@ public class Lab08C extends GBSNetworkApp {
         super.add(playAgain);
         playAgain.setVisible(false);
 
-        int number = (int) (Math.random()*100+1);
-        connect("localhost", "bveitch" + number);
-
-
         this.newGame();
     }
 
@@ -149,11 +145,6 @@ public class Lab08C extends GBSNetworkApp {
                 }
             }
         }
-    }
-
-    @Override
-    public void onRecieve(String type, String message) {
-        System.out.println("[N]: " + message);
     }
 
     @Override
