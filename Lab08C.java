@@ -61,7 +61,7 @@ public class Lab08C extends GBSNetworkApp {
         // START NEW
         int number = (int) (Math.random()*10000+1);
         String username = "User" + number;
-        connect("10.0.1.10", username);
+        connect("10.0.1.83", username);
         setChannel("lab08c");
         joinLobby("A");
         // END NEW
@@ -192,6 +192,13 @@ public class Lab08C extends GBSNetworkApp {
                 send("yourColor", "" + GOLD_TOKEN);
             }
             unlockButtons(); // our turn
+        }
+
+        if (type.equals("leaveLobby")) {
+            this.newGame();
+
+            myColor = currentPlayer; 
+            lockButtons(); 
         }
 
         if (type.equals("yourColor")) {
