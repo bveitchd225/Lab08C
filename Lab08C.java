@@ -61,9 +61,10 @@ public class Lab08C extends GBSNetworkApp {
         // START NEW
         int number = (int) (Math.random()*10000+1);
         String username = "User" + number;
-        connect("10.0.1.83", username);
+        connect("10.33.0.60", username);
         setChannel("lab08c");
-        joinLobby("A");
+        // joinLobby("A");
+        joinBotLobby("A");
         // END NEW
 
         this.newGame();
